@@ -265,6 +265,8 @@
       </div>
     </header>
 
+    <div class="note" id="convite-nome-box" style="display:none;"></div>
+
     <div id="erro-envio" class="error-banner"></div>
 
     <form id="form">
@@ -518,13 +520,18 @@
     }
     try{
       const { data, error } = await supabaseClient.rpc('check_token', { p_token: token });
-      if(error || !data){
+      if(error || !data || !data.status){
         showScreen('status-invalido');
         return;
       }
-      if(data === 'concluido'){
+      if(data.status === 'concluido'){
         showScreen('status-concluido');
-      } else if(data === 'pendente'){
+      } else if(data.status === 'pendente'){
+        if(data.nome){
+          const box = document.getElementById('convite-nome-box');
+          box.textContent = `Este link foi gerado para: ${data.nome}. Se esse não for o seu nome, não continue — avise o RH antes de preencher.`;
+          box.style.display = '';
+        }
         showScreen('form-wrapper');
       } else {
         showScreen('status-invalido');
@@ -549,14 +556,25 @@
     try{
       const dados = collectDados(form);
       const { data, error } = await supabaseClient.rpc('submit_ficha', { p_token: token, p_dados: dados });
-      if(error || data !== true){
+      if(error){
         erroBox.textContent = 'Não foi possível enviar sua ficha. Verifique sua conexão e tente novamente, ou contate o RH.';
         erroBox.style.display = '';
         btn.disabled = false;
         btn.textContent = 'Enviar Ficha';
         return;
       }
-      showScreen('status-sucesso');
+      if(data === 'ok'){
+        showScreen('status-sucesso');
+        return;
+      }
+      if(data === 'ja_enviado'){
+        erroBox.textContent = 'Este link já foi utilizado — outra pessoa já enviou uma ficha por ele. Se isso for um engano, solicite um novo link ao RH.';
+      } else {
+        erroBox.textContent = 'Este link não é mais válido. Solicite um novo link ao RH.';
+      }
+      erroBox.style.display = '';
+      btn.disabled = false;
+      btn.textContent = 'Enviar Ficha';
     }catch(err){
       erroBox.textContent = 'Não foi possível enviar sua ficha. Verifique sua conexão e tente novamente, ou contate o RH.';
       erroBox.style.display = '';
