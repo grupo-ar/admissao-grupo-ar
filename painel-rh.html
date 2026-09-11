@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel RH — Grupo AR</title>
+<style>
+  :root{
+    --ink:#1c2b2a;
+    --paper:#fbfaf7;
+    --line:#c9c2b4;
+    --accent:#0f5c53;
+    --accent-soft:#e7efec;
+    --muted:#6b6459;
+    --danger:#a13f3f;
+    --warn:#a1791f;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:#e9e5da;
+    font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color:var(--ink);
+    padding:32px 16px 80px;
+  }
+  .wrap{max-width:1040px; margin:0 auto;}
+  header.masthead{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    border-bottom:3px solid var(--ink);
+    padding-bottom:14px;
+    margin-bottom:28px;
+  }
+  header.masthead .company{font-size:20px; font-weight:700;}
+  header.masthead .brands{font-size:11px; letter-spacing:.04em; color:var(--muted); text-transform:uppercase; margin-top:2px;}
+  header.masthead h1{margin:2px 0 0; font-size:24px; font-weight:700;}
+  button{font-family:inherit; font-size:14px; border-radius:3px; cursor:pointer;}
+  .btn-primary{background:var(--accent); color:#fff; border:1px solid var(--accent); padding:9px 16px; font-weight:600;}
+  .btn-primary:hover{background:#0c473f;}
+  .btn-primary:disabled{opacity:.6; cursor:default;}
+  .btn-secondary{background:#fff; color:var(--ink); border:1px solid var(--line); padding:8px 14px;}
+  .btn-secondary:hover{background:#f1efe9;}
+  .btn-danger{background:#fff; color:var(--danger); border:1px solid var(--danger); padding:6px 10px; font-size:12px;}
+  .btn-link{background:none; border:none; color:var(--accent); text-decoration:underline; padding:0; font-size:13px;}
+
+  .login-box{max-width:380px; margin:100px auto; background:var(--paper); border:1px solid var(--line); padding:36px;}
+  .login-box h2{margin-top:0;}
+  .login-box input{width:100%; padding:10px; margin-bottom:12px; border:1px solid var(--line); border-radius:3px; font-size:14px;}
+  .login-error{color:var(--danger); font-size:13px; margin-bottom:12px; display:none;}
+
+  .toolbar{display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; gap:10px; flex-wrap:wrap;}
+  .toolbar-right{display:flex; gap:8px;}
+
+  table{width:100%; border-collapse:collapse; background:var(--paper); border:1px solid var(--line);}
+  th, td{text-align:left; padding:10px 12px; border-bottom:1px solid var(--line); font-size:13.5px;}
+  th{background:var(--accent-soft); font-size:11.5px; text-transform:uppercase; letter-spacing:.03em; color:var(--muted);}
+  tr:last-child td{border-bottom:none;}
+  .badge{padding:3px 9px; border-radius:20px; font-size:11.5px; font-weight:600;}
+  .badge-pendente{background:#fbeecb; color:var(--warn);}
+  .badge-concluido{background:#dcefe7; color:var(--accent);}
+  .actions{display:flex; gap:8px; flex-wrap:wrap;}
+
+  .modal-overlay{display:none; position:fixed; inset:0; background:rgba(28,43,42,.5); align-items:center; justify-content:center; padding:20px; z-index:10;}
+  .modal{background:var(--paper); max-width:640px; width:100%; max-height:80vh; overflow-y:auto; padding:28px; border:1px solid var(--line);}
+  .modal h3{margin-top:0;}
+  .modal .row{display:flex; justify-content:space-between; gap:16px; padding:6px 0; border-bottom:1px solid var(--line); font-size:13px;}
+  .modal .row .k{color:var(--muted);}
+  .modal .row .v{text-align:right; font-weight:500;}
+  .modal-close{float:right;}
+
+  .link-box{display:flex; gap:8px; margin-top:10px;}
+  .link-box input{flex:1; padding:8px; border:1px solid var(--line); border-radius:3px; font-size:12.5px;}
+
+  .empty{text-align:center; padding:50px 20px; color:var(--muted);}
+</style>
+</head>
+<body>
+
+  <div id="login-screen" class="login-box">
+    <h2>Painel RH</h2>
+    <p style="color:var(--muted); font-size:13px;">Entre com o login compartilhado do RH.</p>
+    <div id="login-error" class="login-error"></div>
+    <input id="login-email" placeholder="E-mail" type="email">
+    <input id="login-senha" placeholder="Senha" type="password">
+    <button class="btn-primary" id="btn-login" style="width:100%;">Entrar</button>
+  </div>
+
+  <div id="painel" class="wrap" style="display:none;">
+    <header class="masthead">
+      <div>
+        <div class="company">Grupo AR</div>
+        <div class="brands">Arvo · Lara · Terra · Voar</div>
+        <h1>Painel de Admissões</h1>
+      </div>
+      <button class="btn-link" id="btn-logout">Sair</button>
+    </header>
+
+    <div class="toolbar">
+      <div id="resumo" style="font-size:13px; color:var(--muted);"></div>
+      <div class="toolbar-right">
+        <button class="btn-secondary" id="btn-exportar">Baixar CSV</button>
+        <button class="btn-primary" id="btn-novo">+ Novo convite</button>
+      </div>
+    </div>
+
+    <div id="tabela-wrap">
+      <table id="tabela">
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th>E-mail</th>
+            <th>Status</th>
+            <th>Convite criado</th>
+            <th>Enviado em</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody id="tabela-body"></tbody>
+      </table>
+      <div id="empty" class="empty" style="display:none;">Nenhum convite criado ainda. Clique em "+ Novo convite" para começar.</div>
+    </div>
+  </div>
+
+  <!-- Modal: novo convite -->
+  <div class="modal-overlay" id="modal-novo">
+    <div class="modal">
+      <button class="btn-link modal-close" onclick="fecharModal('modal-novo')">Fechar</button>
+      <h3>Novo convite</h3>
+      <p style="color:var(--muted); font-size:13px;">Informe o nome do colaborador. Um link único será gerado — envie esse link para ele preencher a ficha.</p>
+      <input id="novo-nome" placeholder="Nome completo" style="width:100%; padding:9px; margin-bottom:10px; border:1px solid var(--line); border-radius:3px;" type="text">
+      <input id="novo-email" placeholder="E-mail (opcional)" style="width:100%; padding:9px; margin-bottom:10px; border:1px solid var(--line); border-radius:3px;" type="email">
+      <button class="btn-primary" id="btn-criar-convite">Gerar link</button>
+      <div id="novo-resultado" style="display:none; margin-top:16px;">
+        <div style="font-size:13px; color:var(--muted);">Link gerado — copie e envie ao colaborador:</div>
+        <div class="link-box">
+          <input id="novo-link" readonly type="text">
+          <button class="btn-secondary" onclick="copiarLink()">Copiar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: ver dados -->
+  <div class="modal-overlay" id="modal-dados">
+    <div class="modal">
+      <button class="btn-link modal-close" onclick="fecharModal('modal-dados')">Fechar</button>
+      <h3 id="dados-titulo">Dados enviados</h3>
+      <div id="dados-conteudo"></div>
+    </div>
+  </div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+  const SUPABASE_URL = 'https://pkkpcpruslisdxhcjnif.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_TA5vHRZLehzpnDsXSCJ7vQ_aCfzGMN3';
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  let candidatos = [];
+
+  function abrirModal(id){ document.getElementById(id).style.display = 'flex'; }
+  function fecharModal(id){ document.getElementById(id).style.display = 'none'; }
+
+  function formLinkBase(){
+    return window.location.origin + window.location.pathname.replace(/painel-rh\.html$/, 'ficha-admissao.html');
+  }
+
+  function gerarToken(){
+    if(crypto.randomUUID) return crypto.randomUUID().replace(/-/g, '');
+    return Array.from({length:32}, () => Math.floor(Math.random()*16).toString(16)).join('');
+  }
+
+  // ---------- Login ----------
+  document.getElementById('btn-login').addEventListener('click', async () => {
+    const email = document.getElementById('login-email').value.trim();
+    const senha = document.getElementById('login-senha').value;
+    const errEl = document.getElementById('login-error');
+    errEl.style.display = 'none';
+    const { error } = await supabaseClient.auth.signInWithPassword({ email, password: senha });
+    if(error){
+      errEl.textContent = 'E-mail ou senha incorretos.';
+      errEl.style.display = '';
+      return;
+    }
+    mostrarPainel();
+  });
+
+  document.getElementById('btn-logout').addEventListener('click', async () => {
+    await supabaseClient.auth.signOut();
+    document.getElementById('painel').style.display = 'none';
+    document.getElementById('login-screen').style.display = '';
+  });
+
+  async function mostrarPainel(){
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('painel').style.display = '';
+    await carregarCandidatos();
+  }
+
+  // ---------- Carregar lista ----------
+  async function carregarCandidatos(){
+    const { data, error } = await supabaseClient
+      .from('candidatos')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if(error){
+      alert('Erro ao carregar dados: ' + error.message);
+      return;
+    }
+    candidatos = data || [];
+    renderTabela();
+  }
+
+  function fmtData(iso){
+    if(!iso) return '—';
+    const d = new Date(iso);
+    return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+  }
+
+  function renderTabela(){
+    const body = document.getElementById('tabela-body');
+    const empty = document.getElementById('empty');
+    body.innerHTML = '';
+    document.getElementById('resumo').textContent =
+      `${candidatos.length} convite(s) — ${candidatos.filter(c=>c.status==='concluido').length} concluído(s), ${candidatos.filter(c=>c.status==='pendente').length} pendente(s)`;
+
+    if(candidatos.length === 0){
+      empty.style.display = '';
+      return;
+    }
+    empty.style.display = 'none';
+
+    candidatos.forEach(c => {
+      const tr = document.createElement('tr');
+      const link = formLinkBase() + '?token=' + c.token;
+      tr.innerHTML = `
+        <td>${escapeHtml(c.nome)}</td>
+        <td>${escapeHtml(c.email || '—')}</td>
+        <td><span class="badge badge-${c.status}">${c.status === 'concluido' ? 'Concluído' : 'Pendente'}</span></td>
+        <td>${fmtData(c.created_at)}</td>
+        <td>${fmtData(c.submitted_at)}</td>
+        <td class="actions">
+          <button class="btn-secondary" onclick="copiarTexto('${link}')">Copiar link</button>
+          ${c.status === 'concluido' ? `<button class="btn-secondary" onclick="verDados('${c.id}')">Ver dados</button>` : ''}
+          <button class="btn-danger" onclick="excluir('${c.id}', '${escapeHtml(c.nome)}')">Excluir</button>
+        </td>
+      `;
+      body.appendChild(tr);
+    });
+  }
+
+  function escapeHtml(str){
+    if(str === null || str === undefined) return '';
+    return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  }
+
+  function copiarTexto(txt){
+    navigator.clipboard.writeText(txt).then(() => alert('Link copiado!'));
+  }
+
+  // ---------- Novo convite ----------
+  document.getElementById('btn-novo').addEventListener('click', () => {
+    document.getElementById('novo-nome').value = '';
+    document.getElementById('novo-email').value = '';
+    document.getElementById('novo-resultado').style.display = 'none';
+    abrirModal('modal-novo');
+  });
+
+  document.getElementById('btn-criar-convite').addEventListener('click', async () => {
+    const nome = document.getElementById('novo-nome').value.trim();
+    const email = document.getElementById('novo-email').value.trim();
+    if(!nome){ alert('Informe o nome do colaborador.'); return; }
+
+    const token = gerarToken();
+    const { error } = await supabaseClient.from('candidatos').insert({
+      token, nome, email: email || null, status: 'pendente'
+    });
+    if(error){
+      alert('Erro ao criar convite: ' + error.message);
+      return;
+    }
+    const link = formLinkBase() + '?token=' + token;
+    document.getElementById('novo-link').value = link;
+    document.getElementById('novo-resultado').style.display = '';
+    await carregarCandidatos();
+  });
+
+  function copiarLink(){
+    const el = document.getElementById('novo-link');
+    el.select();
+    navigator.clipboard.writeText(el.value).then(() => alert('Link copiado!'));
+  }
+
+  // ---------- Ver dados ----------
+  const LABELS = {
+    nome_completo:'Nome completo', nome_social:'Nome social', data_nascimento:'Data de nascimento',
+    sexo:'Sexo', raca_cor:'Raça/Cor', estado_civil:'Estado civil', email:'E-mail', telefone:'Telefone',
+    nome_conjuge:'Nome do cônjuge', grau_instrucao:'Grau de instrução', nome_pai:'Nome do pai', nome_mae:'Nome da mãe',
+    naturalidade:'Naturalidade', naturalidade_uf:'UF naturalidade', nacionalidade:'Nacionalidade',
+    endereco:'Endereço', numero:'Número', bairro:'Bairro', complemento:'Complemento', cep:'CEP',
+    municipio:'Município', uf:'UF', rg_numero:'RG', rg_orgao_uf:'Órgão emissor/UF', rg_data_emissao:'RG emitido em',
+    cpf:'CPF', pis_numero:'PIS/PASEP', ctps_numero:'CTPS nº', ctps_serie:'CTPS série', ctps_uf:'CTPS UF',
+    ctps_data_emissao:'CTPS emitida em', titulo_numero:'Título eleitor nº', titulo_zona:'Zona', titulo_secao:'Seção',
+    reservista:'Reservista', cnh_numero:'CNH nº', cnh_categoria:'CNH categoria', cnh_validade:'CNH validade',
+    vt:'Vale transporte', vem_numero:'Nº Cartão VEM', vem_passagens_dia:'Passagens/dia',
+    banco:'Banco', agencia:'Agência', conta:'Conta', digito:'Dígito', tipo_conta:'Tipo de conta',
+    declaracao_nome:'Nome (declaração)', declaracao_data:'Data de preenchimento'
+  };
+
+  function verDados(id){
+    const c = candidatos.find(x => x.id === id);
+    if(!c || !c.dados) return;
+    document.getElementById('dados-titulo').textContent = 'Dados enviados — ' + c.nome;
+    const cont = document.getElementById('dados-conteudo');
+    cont.innerHTML = '';
+    Object.entries(c.dados).forEach(([k, v]) => {
+      if(k === 'dependentes' || k === 'declaracao_confirmada') return;
+      const label = LABELS[k] || k;
+      const row = document.createElement('div');
+      row.className = 'row';
+      row.innerHTML = `<span class="k">${escapeHtml(label)}</span><span class="v">${escapeHtml(v) || '—'}</span>`;
+      cont.appendChild(row);
+    });
+    if(Array.isArray(c.dados.dependentes) && c.dados.dependentes.length){
+      const h = document.createElement('div');
+      h.style.cssText = 'margin-top:14px; font-weight:700; font-size:13px;';
+      h.textContent = 'Dependentes';
+      cont.appendChild(h);
+      c.dados.dependentes.forEach(d => {
+        const row = document.createElement('div');
+        row.className = 'row';
+        row.innerHTML = `<span class="k">${escapeHtml(d.nome)}</span><span class="v">${escapeHtml(d.data_nascimento)} · ${escapeHtml(d.cpf)}</span>`;
+        cont.appendChild(row);
+      });
+    }
+    abrirModal('modal-dados');
+  }
+
+  // ---------- Excluir ----------
+  async function excluir(id, nome){
+    if(!confirm(`Excluir o convite/ficha de "${nome}"? Esta ação não pode ser desfeita.`)) return;
+    const { error } = await supabaseClient.from('candidatos').delete().eq('id', id);
+    if(error){ alert('Erro ao excluir: ' + error.message); return; }
+    await carregarCandidatos();
+  }
+
+  // ---------- Exportar CSV ----------
+  document.getElementById('btn-exportar').addEventListener('click', () => {
+    const concluidos = candidatos.filter(c => c.status === 'concluido' && c.dados);
+    if(concluidos.length === 0){ alert('Nenhuma ficha concluída para exportar.'); return; }
+
+    const keySet = new Set();
+    concluidos.forEach(c => Object.keys(c.dados).forEach(k => { if(k !== 'dependentes') keySet.add(k); }));
+    const keys = Array.from(keySet);
+    const header = ['nome_convite','email_convite','status','submitted_at', ...keys, 'dependentes'];
+
+    const rows = concluidos.map(c => {
+      const line = [c.nome, c.email || '', c.status, c.submitted_at || ''];
+      keys.forEach(k => line.push(c.dados[k] !== undefined ? c.dados[k] : ''));
+      const deps = Array.isArray(c.dados.dependentes) ? c.dados.dependentes.map(d => `${d.nome} (${d.data_nascimento}, ${d.cpf})`).join(' | ') : '';
+      line.push(deps);
+      return line;
+    });
+
+    const csvEscape = v => `"${String(v).replace(/"/g, '""')}"`;
+    const csv = [header.map(csvEscape).join(','), ...rows.map(r => r.map(csvEscape).join(','))].join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'admissoes_grupo_ar.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  // ---------- Sessão existente ----------
+  (async function(){
+    const { data } = await supabaseClient.auth.getSession();
+    if(data.session){
+      mostrarPainel();
+    }
+  })();
+</script>
+
+</body>
+</html>
