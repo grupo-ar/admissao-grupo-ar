@@ -86,6 +86,15 @@
     <button class="btn-primary" id="btn-login" style="width:100%;">Entrar</button>
   </div>
 
+  <div id="recovery-screen" class="login-box" style="display:none;">
+    <h2>Definir nova senha</h2>
+    <p style="color:var(--muted); font-size:13px;">Escolha a nova senha compartilhada do RH.</p>
+    <div id="recovery-error" class="login-error"></div>
+    <input id="recovery-senha" placeholder="Nova senha" type="password">
+    <input id="recovery-senha2" placeholder="Confirme a nova senha" type="password">
+    <button class="btn-primary" id="btn-recovery" style="width:100%;">Salvar nova senha</button>
+  </div>
+
   <div id="painel" class="wrap" style="display:none;">
     <header class="masthead">
       <div>
@@ -373,8 +382,52 @@
     URL.revokeObjectURL(url);
   });
 
+  // ---------- Recuperação de senha ----------
+  function mostrarTelaRecuperacao(){
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('painel').style.display = 'none';
+    document.getElementById('recovery-screen').style.display = '';
+  }
+
+  supabaseClient.auth.onAuthStateChange((event, session) => {
+    if(event === 'PASSWORD_RECOVERY'){
+      mostrarTelaRecuperacao();
+    }
+  });
+
+  document.getElementById('btn-recovery').addEventListener('click', async () => {
+    const senha1 = document.getElementById('recovery-senha').value;
+    const senha2 = document.getElementById('recovery-senha2').value;
+    const errEl = document.getElementById('recovery-error');
+    errEl.style.display = 'none';
+
+    if(senha1.length < 6){
+      errEl.textContent = 'A senha precisa ter pelo menos 6 caracteres.';
+      errEl.style.display = '';
+      return;
+    }
+    if(senha1 !== senha2){
+      errEl.textContent = 'As senhas não coincidem.';
+      errEl.style.display = '';
+      return;
+    }
+
+    const { error } = await supabaseClient.auth.updateUser({ password: senha1 });
+    if(error){
+      errEl.textContent = 'Erro ao salvar: ' + error.message;
+      errEl.style.display = '';
+      return;
+    }
+    alert('Senha atualizada com sucesso! Você já está logada.');
+    document.getElementById('recovery-screen').style.display = 'none';
+    mostrarPainel();
+  });
+
   // ---------- Sessão existente ----------
   (async function(){
+    if(window.location.hash.includes('type=recovery')){
+      return; // aguarda o evento PASSWORD_RECOVERY acima
+    }
     const { data } = await supabaseClient.auth.getSession();
     if(data.session){
       mostrarPainel();
