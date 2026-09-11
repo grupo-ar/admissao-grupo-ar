@@ -347,59 +347,172 @@
     abrirModal('modal-dados');
   }
 
-  const SECTIONS = [
-    {title:'Dados Pessoais', keys:['nome_completo','nome_social','data_nascimento','sexo','raca_cor','estado_civil','email','telefone','nome_conjuge','grau_instrucao','nome_pai','nome_mae','naturalidade','naturalidade_uf','nacionalidade']},
-    {title:'Endereço', keys:['endereco','numero','bairro','complemento','cep','municipio','uf']},
-    {title:'Documentos', keys:['rg_numero','rg_orgao_uf','rg_data_emissao','cpf','pis_numero','ctps_numero','ctps_serie','ctps_uf','ctps_data_emissao','titulo_numero','titulo_zona','titulo_secao','reservista','cnh_numero','cnh_categoria','cnh_validade']},
-    {title:'Vale Transporte', keys:['vt','vem_numero','vem_passagens_dia']},
-    {title:'Dados Bancários', keys:['banco','agencia','conta','digito','tipo_conta']},
-    {title:'Declaração', keys:['declaracao_nome','declaracao_data']}
-  ];
+  function f(label, value, span2){
+    if(value === undefined || value === null || value === ''){ return ''; }
+    return `<div class="f${span2 ? ' span2' : ''}"><span class="k">${escapeHtml(label)}</span><span class="v">${escapeHtml(value)}</span></div>`;
+  }
 
   function imprimirFicha(id){
     const c = candidatos.find(x => x.id === id);
     if(!c || !c.dados) return;
     const d = c.dados;
+    const protocolo = (c.id || '').replace(/-/g, '').slice(0, 8).toUpperCase();
 
-    let sectionsHtml = '';
-    SECTIONS.forEach(sec => {
-      const rows = sec.keys
-        .filter(k => d[k] !== undefined && d[k] !== null && d[k] !== '')
-        .map(k => `<div class="row"><span class="k">${escapeHtml(LABELS[k] || k)}</span><span class="v">${escapeHtml(d[k])}</span></div>`)
-        .join('');
-      if(rows) sectionsHtml += `<section><h2>${sec.title}</h2>${rows}</section>`;
-    });
+    const naturalidade = [d.naturalidade, d.naturalidade_uf].filter(Boolean).join(' / ');
+    const enderecoLinha = [d.endereco, d.numero].filter(Boolean).join(', ');
+    const municipioUf = [d.municipio, d.uf].filter(Boolean).join(' / ');
+    const tituloLinha = d.titulo_numero ? `${d.titulo_numero} — Zona ${d.titulo_zona || '—'}, Seção ${d.titulo_secao || '—'}` : '';
+    const ctpsLinha = d.ctps_numero ? `${d.ctps_numero}${d.ctps_serie ? ' / série ' + d.ctps_serie : ''}${d.ctps_uf ? ' / ' + d.ctps_uf : ''}${d.ctps_data_emissao ? ' — emitida em ' + d.ctps_data_emissao : ''}` : '';
+    const cnhLinha = d.cnh_numero ? `${d.cnh_numero}${d.cnh_categoria ? ' / categoria ' + d.cnh_categoria : ''}${d.cnh_validade ? ' — validade ' + d.cnh_validade : ''}` : '';
+    const contaLinha = [d.conta, d.digito].filter(Boolean).join('-');
 
+    const pessoais = [
+      f('Nome completo', d.nome_completo, true),
+      f('Nome social', d.nome_social, true),
+      f('Data de nascimento', d.data_nascimento),
+      f('Sexo', d.sexo),
+      f('Raça/Cor', d.raca_cor),
+      f('Estado civil', d.estado_civil),
+      f('E-mail', d.email, true),
+      f('Telefone', d.telefone),
+      f('Nome do cônjuge', d.nome_conjuge),
+      f('Grau de instrução', d.grau_instrucao),
+      f('Nome do pai', d.nome_pai),
+      f('Nome da mãe', d.nome_mae),
+      f('Naturalidade', naturalidade),
+      f('Nacionalidade', d.nacionalidade)
+    ].join('');
+
+    const endereco = [
+      f('Endereço', enderecoLinha, true),
+      f('Bairro', d.bairro),
+      f('CEP', d.cep),
+      f('Complemento', d.complemento),
+      f('Município / UF', municipioUf, true)
+    ].join('');
+
+    const isVem = d.vt === 'Cartão VEM';
+    const vale = isVem
+      ? `<div class="fields three">${f('Forma de recebimento', d.vt)}${f('Nº do Cartão VEM', d.vem_numero)}${f('Passagens por dia', d.vem_passagens_dia)}</div>`
+      : `<div class="fields">${f('Forma de recebimento', d.vt, true)}</div>`;
+
+    const documentos = [
+      f('RG', d.rg_numero),
+      f('Órgão emissor/UF', d.rg_orgao_uf),
+      f('CPF', d.cpf),
+      f('PIS/PASEP', d.pis_numero),
+      f('Título de eleitor', tituloLinha, true),
+      f('CTPS', ctpsLinha, true),
+      f('Certificado de Reservista', d.reservista),
+      f('CNH', cnhLinha, true)
+    ].join('');
+
+    const bancarios = [
+      f('Banco', d.banco, true),
+      f('Agência', d.agencia),
+      f('Conta', contaLinha),
+      f('Tipo de conta', d.tipo_conta, true)
+    ].join('');
+
+    let depsHtml;
     if(Array.isArray(d.dependentes) && d.dependentes.length){
       const rows = d.dependentes.map(dep =>
-        `<div class="row"><span class="k">${escapeHtml(dep.nome)}</span><span class="v">${escapeHtml(dep.data_nascimento)} · ${escapeHtml(dep.cpf)}</span></div>`
+        `<tr><td>${escapeHtml(dep.nome)}</td><td>${escapeHtml(dep.data_nascimento)}</td><td>${escapeHtml(dep.cpf)}</td></tr>`
       ).join('');
-      sectionsHtml += `<section><h2>Dependentes</h2>${rows}</section>`;
+      depsHtml = `<table class="dep-table"><thead><tr><th>Nome</th><th>Data de nascimento</th><th>CPF</th></tr></thead><tbody>${rows}</tbody></table>`;
+    } else {
+      depsHtml = `<div class="fields single"><div class="f"><span class="v" style="font-weight:400;color:var(--muted);font-size:10px;">Nenhum dependente informado.</span></div></div>`;
     }
 
     const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Ficha de Admissão — ${escapeHtml(c.nome)}</title>
 <style>
-  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:#1c2b2a;margin:0;padding:40px 56px;background:#fff;}
-  header{border-bottom:3px solid #1c2b2a;padding-bottom:14px;margin-bottom:26px;}
-  header .company{font-size:20px;font-weight:700;}
-  header .brands{font-size:11px;letter-spacing:.04em;color:#6b6459;text-transform:uppercase;margin-top:2px;}
-  header h1{margin:4px 0 0;font-size:22px;font-weight:700;}
-  section{margin-bottom:22px;break-inside:avoid;}
-  section h2{font-size:12.5px;font-weight:700;color:#0f5c53;margin:0 0 10px;padding-bottom:5px;border-bottom:1px solid #c9c2b4;text-transform:uppercase;letter-spacing:.03em;}
-  .row{display:flex;justify-content:space-between;gap:16px;padding:5px 0;border-bottom:1px solid #eee;font-size:13px;}
-  .row .k{color:#6b6459;}
-  .row .v{font-weight:500;text-align:right;}
-  .footer-note{margin-top:30px;font-size:11px;color:#6b6459;border-top:1px solid #eee;padding-top:10px;}
-  @media print{ body{padding:20px 32px;} }
+  :root{--paper:#fdfcf9;--ink:#1a1a18;--muted:#6b655a;--line:#c7c2b4;--line-soft:#e4e0d5;--accent:#0f5c53;--tag-bg:#eeece4;}
+  *{box-sizing:border-box;}
+  html,body{margin:0;background:#ded9cb;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;color:var(--ink);}
+  .toolbar{max-width:210mm;margin:16px auto;display:flex;justify-content:flex-end;}
+  .toolbar button{font-family:inherit;font-size:13px;font-weight:600;background:var(--accent);color:#fff;border:1px solid var(--accent);padding:9px 16px;border-radius:3px;cursor:pointer;}
+  .page{width:210mm;min-height:297mm;margin:0 auto 40px;background:var(--paper);padding:14mm 14mm 12mm;}
+  .doc-head{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:8mm;}
+  .doc-head .brand-name{font-family:Georgia,"Iowan Old Style","Times New Roman",serif;font-size:19px;font-weight:700;letter-spacing:.01em;}
+  .doc-head .brand-list{font-size:9.5px;color:var(--muted);margin-top:2px;}
+  .doc-head .registry{text-align:right;font-size:9.5px;color:var(--muted);line-height:1.6;}
+  .doc-head .registry b{color:var(--ink);font-weight:600;}
+  .rule-thick{border:none;border-top:2.5px solid var(--ink);margin:0 0 6mm;}
+  .doc-title{display:flex;justify-content:space-between;align-items:baseline;padding-bottom:6mm;margin-bottom:7mm;border-bottom:1px solid var(--line);}
+  .doc-title h1{font-family:Georgia,"Iowan Old Style","Times New Roman",serif;font-size:22px;font-weight:700;margin:0;}
+  .doc-title .sub{font-size:10px;color:var(--muted);margin-top:3px;}
+  .doc-title .status-tag{font-size:9.5px;font-weight:700;color:var(--accent);background:var(--tag-bg);padding:4px 10px;letter-spacing:.03em;white-space:nowrap;}
+  .columns{display:grid;grid-template-columns:1fr 1fr;column-gap:12mm;}
+  section.block{margin-bottom:6mm;break-inside:avoid;}
+  section.block h2{font-size:10.5px;font-weight:700;color:var(--accent);letter-spacing:.05em;text-transform:uppercase;margin:0 0 3mm;padding-bottom:2mm;border-bottom:1px solid var(--ink);}
+  .fields{display:grid;grid-template-columns:1fr 1fr;column-gap:5mm;}
+  .fields.single{grid-template-columns:1fr;}
+  .fields.three{grid-template-columns:1fr 1fr 1fr;}
+  .f{padding:2.2mm 0;border-bottom:1px solid var(--line-soft);}
+  .f .k{display:block;font-size:8.3px;color:var(--muted);margin-bottom:.8mm;}
+  .f .v{display:block;font-size:11px;font-weight:600;color:var(--ink);line-height:1.25;}
+  .f.span2{grid-column:1 / -1;}
+  .dep-section{margin-top:6mm;}
+  table.dep-table{width:100%;border-collapse:collapse;font-size:10.5px;}
+  table.dep-table thead{display:table-header-group;}
+  table.dep-table th{text-align:left;font-size:8.3px;color:var(--muted);font-weight:600;padding:0 0 2mm;border-bottom:1px solid var(--ink);}
+  table.dep-table tr{break-inside:avoid;}
+  table.dep-table td{padding:2mm 8px 2mm 0;border-bottom:1px solid var(--line-soft);}
+  .declaracao{margin-top:2mm;padding:5mm 6mm;border:1px solid var(--ink);font-size:10px;line-height:1.55;color:var(--ink);break-inside:avoid;}
+  .declaracao .meta{margin-top:3mm;font-size:9px;color:var(--muted);display:flex;justify-content:space-between;}
+  .doc-foot{margin-top:8mm;padding-top:3mm;border-top:1px solid var(--line);font-size:8.5px;color:var(--muted);display:flex;justify-content:space-between;}
+  @media print{
+    html,body{background:#fff;}
+    .toolbar{display:none;}
+    .page{margin:0;width:auto;min-height:0;padding:8mm 10mm;}
+    @page{size:A4;margin:0;}
+  }
 </style>
 </head><body>
-<header>
-  <div class="company">Grupo AR</div>
-  <div class="brands">Arvo · Lara · Terra · Voar</div>
-  <h1>Ficha de Admissão — ${escapeHtml(c.nome)}</h1>
-</header>
-${sectionsHtml}
-<div class="footer-note">Enviado em ${fmtData(c.submitted_at)} · Documento gerado pelo painel de RH do Grupo AR.</div>
+<div class="toolbar"><button onclick="window.print()">Imprimir / Salvar em PDF</button></div>
+<div class="page">
+  <div class="doc-head">
+    <div>
+      <div class="brand-name">Grupo AR</div>
+      <div class="brand-list">Arvo · Lara · Terra · Voar</div>
+    </div>
+    <div class="registry">
+      Protocolo <b>${protocolo}</b><br>
+      Enviado em <b>${fmtData(c.submitted_at)}</b>
+    </div>
+  </div>
+  <hr class="rule-thick">
+  <div class="doc-title">
+    <div>
+      <h1>${escapeHtml(c.nome)}</h1>
+      <div class="sub">Ficha de Admissão — colaborador(a)</div>
+    </div>
+    <div class="status-tag">Concluído</div>
+  </div>
+  <div class="columns">
+    <div>
+      <section class="block"><h2>Dados Pessoais</h2><div class="fields">${pessoais}</div></section>
+      <section class="block"><h2>Endereço</h2><div class="fields">${endereco}</div></section>
+      <section class="block"><h2>Vale Transporte</h2>${vale}</section>
+    </div>
+    <div>
+      <section class="block"><h2>Documentos</h2><div class="fields">${documentos}</div></section>
+      <section class="block"><h2>Dados Bancários</h2><div class="fields">${bancarios}</div></section>
+    </div>
+  </div>
+  <section class="block dep-section"><h2>Dependentes</h2>${depsHtml}</section>
+  <div class="declaracao">
+    "Declaro que as informações prestadas nesta ficha são verdadeiras e foram preenchidas por mim."
+    <div class="meta">
+      <span>Confirmado por: <b style="color:var(--ink)">${escapeHtml(d.declaracao_nome || c.nome)}</b></span>
+      <span>${escapeHtml(d.declaracao_data || '')}</span>
+    </div>
+  </div>
+  <div class="doc-foot">
+    <span>Documento gerado pelo painel de RH do Grupo AR</span>
+    <span>Protocolo ${protocolo}</span>
+  </div>
+</div>
 </body></html>`;
 
     const win = window.open('', '_blank');
