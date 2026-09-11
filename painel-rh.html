@@ -155,6 +155,7 @@
     <div class="modal">
       <button class="btn-link modal-close" onclick="fecharModal('modal-dados')">Fechar</button>
       <h3 id="dados-titulo">Dados enviados</h3>
+      <button class="btn-secondary" id="btn-pdf-modal" style="margin-bottom:14px;">Baixar PDF</button>
       <div id="dados-conteudo"></div>
     </div>
   </div>
@@ -250,7 +251,7 @@
         <td>${fmtData(c.submitted_at)}</td>
         <td class="actions">
           <button class="btn-secondary" onclick="copiarTexto('${link}')">Copiar link</button>
-          ${c.status === 'concluido' ? `<button class="btn-secondary" onclick="verDados('${c.id}')">Ver dados</button>` : ''}
+          ${c.status === 'concluido' ? `<button class="btn-secondary" onclick="verDados('${c.id}')">Ver dados</button><button class="btn-secondary" onclick="imprimirFicha('${c.id}')">Baixar PDF</button>` : ''}
           <button class="btn-danger" onclick="excluir('${c.id}', '${escapeHtml(c.nome)}')">Excluir</button>
         </td>
       `;
@@ -320,6 +321,7 @@
     const c = candidatos.find(x => x.id === id);
     if(!c || !c.dados) return;
     document.getElementById('dados-titulo').textContent = 'Dados enviados — ' + c.nome;
+    document.getElementById('btn-pdf-modal').onclick = () => imprimirFicha(id);
     const cont = document.getElementById('dados-conteudo');
     cont.innerHTML = '';
     Object.entries(c.dados).forEach(([k, v]) => {
@@ -343,6 +345,69 @@
       });
     }
     abrirModal('modal-dados');
+  }
+
+  const SECTIONS = [
+    {title:'Dados Pessoais', keys:['nome_completo','nome_social','data_nascimento','sexo','raca_cor','estado_civil','email','telefone','nome_conjuge','grau_instrucao','nome_pai','nome_mae','naturalidade','naturalidade_uf','nacionalidade']},
+    {title:'Endereço', keys:['endereco','numero','bairro','complemento','cep','municipio','uf']},
+    {title:'Documentos', keys:['rg_numero','rg_orgao_uf','rg_data_emissao','cpf','pis_numero','ctps_numero','ctps_serie','ctps_uf','ctps_data_emissao','titulo_numero','titulo_zona','titulo_secao','reservista','cnh_numero','cnh_categoria','cnh_validade']},
+    {title:'Vale Transporte', keys:['vt','vem_numero','vem_passagens_dia']},
+    {title:'Dados Bancários', keys:['banco','agencia','conta','digito','tipo_conta']},
+    {title:'Declaração', keys:['declaracao_nome','declaracao_data']}
+  ];
+
+  function imprimirFicha(id){
+    const c = candidatos.find(x => x.id === id);
+    if(!c || !c.dados) return;
+    const d = c.dados;
+
+    let sectionsHtml = '';
+    SECTIONS.forEach(sec => {
+      const rows = sec.keys
+        .filter(k => d[k] !== undefined && d[k] !== null && d[k] !== '')
+        .map(k => `<div class="row"><span class="k">${escapeHtml(LABELS[k] || k)}</span><span class="v">${escapeHtml(d[k])}</span></div>`)
+        .join('');
+      if(rows) sectionsHtml += `<section><h2>${sec.title}</h2>${rows}</section>`;
+    });
+
+    if(Array.isArray(d.dependentes) && d.dependentes.length){
+      const rows = d.dependentes.map(dep =>
+        `<div class="row"><span class="k">${escapeHtml(dep.nome)}</span><span class="v">${escapeHtml(dep.data_nascimento)} · ${escapeHtml(dep.cpf)}</span></div>`
+      ).join('');
+      sectionsHtml += `<section><h2>Dependentes</h2>${rows}</section>`;
+    }
+
+    const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Ficha de Admissão — ${escapeHtml(c.nome)}</title>
+<style>
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:#1c2b2a;margin:0;padding:40px 56px;background:#fff;}
+  header{border-bottom:3px solid #1c2b2a;padding-bottom:14px;margin-bottom:26px;}
+  header .company{font-size:20px;font-weight:700;}
+  header .brands{font-size:11px;letter-spacing:.04em;color:#6b6459;text-transform:uppercase;margin-top:2px;}
+  header h1{margin:4px 0 0;font-size:22px;font-weight:700;}
+  section{margin-bottom:22px;break-inside:avoid;}
+  section h2{font-size:12.5px;font-weight:700;color:#0f5c53;margin:0 0 10px;padding-bottom:5px;border-bottom:1px solid #c9c2b4;text-transform:uppercase;letter-spacing:.03em;}
+  .row{display:flex;justify-content:space-between;gap:16px;padding:5px 0;border-bottom:1px solid #eee;font-size:13px;}
+  .row .k{color:#6b6459;}
+  .row .v{font-weight:500;text-align:right;}
+  .footer-note{margin-top:30px;font-size:11px;color:#6b6459;border-top:1px solid #eee;padding-top:10px;}
+  @media print{ body{padding:20px 32px;} }
+</style>
+</head><body>
+<header>
+  <div class="company">Grupo AR</div>
+  <div class="brands">Arvo · Lara · Terra · Voar</div>
+  <h1>Ficha de Admissão — ${escapeHtml(c.nome)}</h1>
+</header>
+${sectionsHtml}
+<div class="footer-note">Enviado em ${fmtData(c.submitted_at)} · Documento gerado pelo painel de RH do Grupo AR.</div>
+</body></html>`;
+
+    const win = window.open('', '_blank');
+    if(!win){ alert('Permita pop-ups pra gerar o PDF.'); return; }
+    win.document.write(html);
+    win.document.close();
+    win.onload = () => win.print();
+    setTimeout(() => { try{ win.focus(); win.print(); }catch(e){} }, 400);
   }
 
   // ---------- Excluir ----------
